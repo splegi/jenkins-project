@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/<ТВОЙ_ЮЗЕРНЕЙМ>/flask-jenkins-pipeline.git'
+                git branch: 'main', url: 'https://github.com/splegi/jenkins-project'
             }
         }
 
