@@ -12,7 +12,17 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/splegi/jenkins-project'
             }
         }
+        
+        stage('run tests') {
+            steps {
+                bat "python -m pip install -r requirements.txt"
+                bat "python -m pip install pytest"
+                bat "pytest tests"
+            }
+        }
 
+
+    
         stage('Build Docker Image') {
             steps {
                 bat "docker build -t %IMAGE_NAME%:latest ."
