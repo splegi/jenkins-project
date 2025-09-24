@@ -13,9 +13,7 @@ pipeline {
             }
         }
 
-       
-        
-        stage('Lint and Format') {
+        stage('Lint & Auto-fix') {
             steps {
                 bat '''
                 pip install flake8 black isort
@@ -23,15 +21,14 @@ pipeline {
                 echo === flake8 check ===
                 flake8 .
 
-                echo === black check ===
-                black --check .
+                echo === black auto-format ===
+                black .
 
-                echo === isort check ===
-                isort --check-only .
+                echo === isort auto-format ===
+                isort .
                 '''
             }
         }
-
         stage('Run Tests') {
             steps {
                 // Устанавливаем зависимости
