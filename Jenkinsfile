@@ -12,7 +12,26 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/splegi/jenkins-project'
             }
         }
+
+       
         
+        stage('Lint and Format') {
+            steps {
+                bat '''
+                pip install flake8 black isort
+
+                echo === flake8 check ===
+                flake8 .
+
+                echo === black check ===
+                black --check .
+
+                echo === isort check ===
+                isort --check-only .
+                '''
+            }
+        }
+
         stage('Run Tests') {
             steps {
                 // Устанавливаем зависимости
