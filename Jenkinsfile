@@ -4,8 +4,9 @@ pipeline {
     environment {
         IMAGE_NAME = "flask-hello"
         CONTAINER_NAME = "flask-hello-container"
-        DOCKER_IMAGE = "splegi/flask-hello" // <-- поменяй на свой Docker Hub репо
+        DOCKER_IMAGE = "splegi/flask-hello" // <-- свой Docker Hub репо
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        CD_REPO = "https://github.com/splegi/cd-deploy-project"
     }
 
     stages {
@@ -46,44 +47,17 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    bat '''
-                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    docker push %DOCKER_IMAGE%:%IMAGE_TAG%
-                    '''
-                }
-            }
-        }
-
-        stage('Update CD Repo') {
-            steps {
-                git url: 'https://github.com/splegi/cd-deploy-project', branch: 'main', credentialsId: 'github-creds'
-                bat """
-                REM Обновляем тег образа в deployment.yaml
-                powershell -Command "(Get-Content deployment.yaml) -replace 'image:.*', 'image: %DOCKER_IMAGE%:%IMAGE_TAG%' | Set-Content deployment.yaml"
-                git add deployment.yaml
-                git commit -m "Update image tag to ${IMAGE_TAG}"
-                git push origin main
-                """
-            }
-        }
-
-        stage('Run Container') {
+        stage('Run Container for Smoke Test') {
             steps {
                 bat """
-                REM Останавливаем старый контейнер, если он существует
                 docker ps -a -q --filter "name=%CONTAINER_NAME%" > nul 2>&1
                 IF %ERRORLEVEL%==0 docker rm -f %CONTAINER_NAME%
-                
-                REM Запускаем новый контейнер
                 docker run -d -p 5000:5000 --name %CONTAINER_NAME% %DOCKER_IMAGE%:%IMAGE_TAG%
                 """
             }
         }
-        
-        stage('Smoke test') {
+
+        stage('Smoke Test') {
             steps {
                 bat '''
                 echo === Smoke test ===
@@ -96,6 +70,29 @@ pipeline {
                     echo Smoke test PASSED!
                 )
                 '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat '''
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    docker push %DOCKER_IMAGE%:%IMAGE_TAG%
+                    '''
+                }
+            }
+        }
+
+        stage('Update CD Repo / Helm') {
+            steps {
+                git url: CD_REPO, branch: 'main', credentialsId: 'github-creds'
+                bat """
+                powershell -Command "(Get-Content charts/flask-hello/values.yaml) -replace 'tag:.*', 'tag: ${IMAGE_TAG}' | Set-Content charts/flask-hello/values.yaml"
+                git add charts/flask-hello/values.yaml
+                git commit -m "Update image tag to ${IMAGE_TAG}"
+                git push origin main
+                """
             }
         }
     }
