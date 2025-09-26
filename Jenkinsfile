@@ -59,19 +59,19 @@ pipeline {
             }
         }
         
-        stage('Smoke test'){
+        stage('Smoke test') {
             steps {
-                 bat """
-                echo === Запускаем smoke-тест ===
-                curl -s -o nul -w "HTTP CODE: %{http_code}\n" http://localhost:5000/ > result.txt
-                findstr "HTTP CODE: 200" result.txt > nul
+                bat '''
+                echo === Smoke test ===
+                curl -s -o nul -w "HTTP CODE: %%{http_code}\\n" http://localhost:5000/ > result.txt
+                findstr "HTTP CODE: 200" result.txt 1>nul
                 if errorlevel 1 (
                     echo Smoke test FAILED!
                     exit 1
                 ) else (
                     echo Smoke test PASSED!
                 )
-                """
+                '''
             }
         }
     }
