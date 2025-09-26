@@ -4,12 +4,14 @@ pipeline {
     environment {
         IMAGE_NAME = "flask-hello"
         CONTAINER_NAME = "flask-hello-container"
+        DOCKER_IMAGE = "splegi/flask-hello" // <-- поменяй на свой Docker Hub репо
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/splegi/jenkins-project'
+                git branch: 'main', url: 'https://github.com/splegi/jenkins-project', credentialsId: 'github-creds'
             }
         }
 
@@ -29,20 +31,42 @@ pipeline {
                 '''
             }
         }
+
         stage('Run Tests') {
             steps {
-                // Устанавливаем зависимости
                 bat "python -m pip install --upgrade pip"
                 bat "python -m pip install -r requirements.txt"
-                
-                // Добавляем текущую директорию в PYTHONPATH и запускаем pytest
                 bat "set PYTHONPATH=%CD% && pytest tests"
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                bat "docker build -t %IMAGE_NAME%:latest ."
+                bat "docker build -t %DOCKER_IMAGE%:%IMAGE_TAG% ."
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    bat '''
+                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                    docker push %DOCKER_IMAGE%:%IMAGE_TAG%
+                    '''
+                }
+            }
+        }
+
+        stage('Update CD Repo') {
+            steps {
+                git url: 'https://github.com/splegi/cd-deploy-project', branch: 'main', credentialsId: 'github-creds'
+                bat """
+                REM Обновляем тег образа в deployment.yaml
+                powershell -Command "(Get-Content deployment.yaml) -replace 'image:.*', 'image: %DOCKER_IMAGE%:%IMAGE_TAG%' | Set-Content deployment.yaml"
+                git add deployment.yaml
+                git commit -m "Update image tag to ${IMAGE_TAG}"
+                git push origin main
+                """
             }
         }
 
@@ -54,7 +78,7 @@ pipeline {
                 IF %ERRORLEVEL%==0 docker rm -f %CONTAINER_NAME%
                 
                 REM Запускаем новый контейнер
-                docker run -d -p 5000:5000 --name %CONTAINER_NAME% %IMAGE_NAME%:latest
+                docker run -d -p 5000:5000 --name %CONTAINER_NAME% %DOCKER_IMAGE%:%IMAGE_TAG%
                 """
             }
         }
