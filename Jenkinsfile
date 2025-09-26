@@ -63,7 +63,7 @@ pipeline {
             steps {
                  bat """
                 echo === Запускаем smoke-тест ===
-                curl -s -o nul -w "HTTP CODE: %{http_code}\\n" http://localhost:5000/ > result.txt
+                curl -s -o nul -w "HTTP CODE: %{http_code}\n" http://localhost:5000/ > result.txt
                 findstr "HTTP CODE: 200" result.txt > nul
                 if errorlevel 1 (
                     echo Smoke test FAILED!
@@ -75,7 +75,7 @@ pipeline {
             }
         }
     }
-    
+
     post{
         success {
             echo "✅ Pipeline успешно завершён!"
