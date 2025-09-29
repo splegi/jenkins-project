@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "flask-hello"
         CONTAINER_NAME = "flask-hello-container"
-        DOCKER_IMAGE = "splegi/flask-hello" // Docker Hub репо
+        DOCKER_IMAGE = "splegi/flask-hello" // <-- свой Docker Hub репо
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         CD_REPO = "https://github.com/splegi/cd-deploy-project"
     }
@@ -97,7 +97,9 @@ pipeline {
                 git pull --rebase https://%GIT_USER%:%GIT_PASS%@github.com/splegi/cd-deploy-project main
                 """
                 withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                    bat 'git push https://%GIT_USER%:%GIT_PASS%@github.com/splegi/cd-deploy-project main'
+                    bat """
+                    git push https://%GIT_USER%:%GIT_PASS%@github.com/splegi/cd-deploy-project main --force-with-lease
+                    """
                 }
             }
         }
