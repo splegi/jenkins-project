@@ -88,9 +88,11 @@ pipeline {
             steps {
                 git url: CD_REPO, branch: 'main', credentialsId: 'github-creds'
                 bat """
+                git config --global user.email "jenkins@example.com"
+                git config --global user.name "Jenkins CI"
                 powershell -Command "(Get-Content charts/flask-hello/values.yaml) -replace 'tag:.*', 'tag: ${IMAGE_TAG}' | Set-Content charts/flask-hello/values.yaml"
                 git add charts/flask-hello/values.yaml
-                git commit -m "Update image tag to ${IMAGE_TAG}"
+                git diff --cached --quiet || git commit -m "Update image tag to ${IMAGE_TAG}"
                 git push origin main
                 """
             }
