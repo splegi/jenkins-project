@@ -86,15 +86,19 @@ pipeline {
 
         stage('Update CD Repo / Helm') {
             steps {
-                git url: CD_REPO, branch: 'main', credentialsId: 'github-creds'
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: 'main']], 
+                    userRemoteConfigs: [[url: CD_REPO, credentialsId: 'github-creds']]
+                ])
                 bat """
-                git config --global user.email "jenkins@example.com"
-                git config --global user.name "Jenkins CI"
                 powershell -Command "(Get-Content charts/flask-hello/values.yaml) -replace 'tag:.*', 'tag: ${IMAGE_TAG}' | Set-Content charts/flask-hello/values.yaml"
                 git add charts/flask-hello/values.yaml
-                git diff --cached --quiet || git commit -m "Update image tag to ${IMAGE_TAG}"
-                git push origin main
+                git commit -m "Update image tag to ${IMAGE_TAG}" || echo "Nothing to commit"
                 """
+                // пуш через Jenkins step
+                withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    bat 'git push https://%GIT_USER%:%GIT_PASS%@github.com/splegi/cd-deploy-project main'
+                }
             }
         }
     }
