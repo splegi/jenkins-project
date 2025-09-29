@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "flask-hello"
         CONTAINER_NAME = "flask-hello-container"
-        DOCKER_IMAGE = "splegi/flask-hello" // <-- свой Docker Hub репо
+        DOCKER_IMAGE = "splegi/flask-hello" // Docker Hub репо
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         CD_REPO = "https://github.com/splegi/cd-deploy-project"
     }
@@ -51,7 +51,7 @@ pipeline {
             steps {
                 bat """
                 docker ps -a -q --filter "name=%CONTAINER_NAME%" > nul 2>&1
-                IF %ERRORLEVEL%==0 docker rm -f %CONTAINER_NAME%
+                IF NOT ERRORLEVEL 1 docker rm -f %CONTAINER_NAME%
                 docker run -d -p 5000:5000 --name %CONTAINER_NAME% %DOCKER_IMAGE%:%IMAGE_TAG%
                 """
             }
@@ -94,8 +94,8 @@ pipeline {
                 powershell -Command "(Get-Content charts/flask-hello/values.yaml) -replace 'tag:.*', 'tag: ${IMAGE_TAG}' | Set-Content charts/flask-hello/values.yaml"
                 git add charts/flask-hello/values.yaml
                 git commit -m "Update image tag to ${IMAGE_TAG}" || echo "Nothing to commit"
+                git pull --rebase https://%GIT_USER%:%GIT_PASS%@github.com/splegi/cd-deploy-project main
                 """
-                // пуш через Jenkins step
                 withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
                     bat 'git push https://%GIT_USER%:%GIT_PASS%@github.com/splegi/cd-deploy-project main'
                 }
@@ -122,3 +122,4 @@ pipeline {
         }
     }
 }
+
